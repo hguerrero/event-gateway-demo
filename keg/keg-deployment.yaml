@@ -8,7 +8,6 @@ metadata:
     app.kubernetes.io/part-of: kafka
     app.kubernetes.io/name: kong-event-gateway
     app.kubernetes.io/component: integration
-    app.openshift.io/runtime: rust
 spec:
   replicas: 1
   selector:
