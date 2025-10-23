@@ -2,7 +2,7 @@
 # This configuration provides contexts for connecting to operations, analytics, and partner virtual clusters
 
 contexts:
-  # Operations context - connects via SNI routing with topic prefix 'ops-'
+  # Operations context - connects via SNI routing with topic prefix 'operations-'
   operations:
     brokers:
       - bootstrap.operations.127-0-0-1.sslip.io:9094

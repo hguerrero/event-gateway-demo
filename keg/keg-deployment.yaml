@@ -24,25 +24,40 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: kong/kong-native-event-proxy-dev@sha256:6671ff86cd07cb8e603d5e296771f4b7ece8cb1672ce2b74f25815cb268ef0d4
-          imagePullPolicy: IfNotPresent
+          image: kong/kong-event-gateway-dev:main
+          imagePullPolicy: Always
           ports:
             - containerPort: 9092
             - containerPort: 9094
             - containerPort: 8080
-          volumeMounts:
-            - name: internal-tls-secret
-              mountPath: /var/tls/internal
-              readOnly: true
-            - name: external-tls-secret
-              mountPath: /var/tls/external
-              readOnly: true
           envFrom:
             - secretRef:
                 name: konnect-env-secret
           env:
-            - name: KNEP__OBSERVABILITY__LOG_FLAGS
-              value: "info,knep=info"
+            - name: KEG__OBSERVABILITY__LOG_FLAGS
+              value: "info,keg=info"
+            - name: KEG__RUNTIME__HEALTH_LISTENER_ADDRESS_PORT
+              value: "0.0.0.0:8080"
+            - name: KEG_TLS_INTERNAL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: keg-internal-tls-secret
+                  key: tls.key
+            - name: KEG_TLS_INTERNAL_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: keg-internal-tls-secret
+                  key: tls.crt
+            - name: KEG_TLS_EXTERNAL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: keg-external-tls-secret
+                  key: tls.key
+            - name: KEG_TLS_EXTERNAL_CERT
+              valueFrom:
+                secretKeyRef:
+                  name: keg-external-tls-secret
+                  key: tls.crt
           readinessProbe:
             httpGet:
               path: /health/probes/readiness
@@ -59,13 +74,6 @@ spec:
               memory: 1Gi
               cpu: 750m
       terminationGracePeriodSeconds: 30
-      volumes:
-        - name: internal-tls-secret
-          secret:
-            secretName: keg-internal-tls-secret
-        - name: external-tls-secret
-          secret:
-            secretName: keg-external-tls-secret
 ---
 apiVersion: v1
 kind: Service

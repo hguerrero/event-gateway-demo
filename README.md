@@ -62,9 +62,11 @@ kubectl apply -f kafka/ -n kafka
 ```bash
 # Create Konnect secret (replace with your values)
 kubectl create secret generic konnect-env-secret \
-  --from-literal=KONNECT_API_HOSTNAME=your-region \
-  --from-literal=KONNECT_CONTROL_PLANE_ID=your-cp-id \
-  --from-literal=KONNECT_API_TOKEN=your-pat-token \
+  --from-literal=KONNECT_REGION=<your-region> \
+  --from-literal=KONNECT_DOMAIN=konghq.com \
+  --from-literal=KONNECT_GATEWAY_CLUSTER_ID=<control-plane-id> \
+  --from-literal=KONNECT_CLIENT_CERT=<full-client-certificate> \
+  --from-literal=KONNECT_CLIENT_KEY=<full-client-key> \
   -n keg
 
 # Deploy KEG components
