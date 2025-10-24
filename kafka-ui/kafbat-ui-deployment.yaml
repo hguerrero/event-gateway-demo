@@ -74,12 +74,14 @@ spec:
               value: "/etc/ssl/ca.crt"
             - name: KAFKA_CLUSTERS_3_PROPERTIES_SSL_TRUSTSTORE_TYPE
               value: "PEM"
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx512m -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError"
           resources:
             requests:
-              memory: "512Mi"
+              memory: "768Mi"
               cpu: "200m"
             limits:
-              memory: "768Mi"
+              memory: "1Gi"
               cpu: "300m"
           volumeMounts:
             - name: kafka-ui-tls-secret
