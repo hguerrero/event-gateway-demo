@@ -21,7 +21,29 @@ All external access (including accessing the Kafka UI) requires utilizing the de
   kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
   ```
 
-## 🚀 Quick Start
+## 💻 Resource Requirements
+
+This deployment includes multiple components that require adequate cluster resources. Below are the resource requirements for each component:
+
+### Cluster Requirements
+
+- **Total CPU**: ~4.5 cores
+- **Total Memory**: ~8GB
+- **Storage**: Ephemeral storage for Kafka brokers (persistent storage recommended for production)
+
+### Component Resource Breakdown
+
+| Component                         | CPU Request | CPU Limit | Memory Request | Memory Limit | Replicas |
+| --------------------------------- | ----------- | --------- | -------------- | ------------ | -------- |
+| **Kafka Brokers**                 | 750m        | 1.2 cores | 2.3GB          | 3GB          | 3        |
+| **KEG Gateway**                   | 500m        | 750m      | 512MB          | 1GB          | 1        |
+| **Kafka Connect (Operations)**    | 250m        | 400m      | 768MB          | 1GB          | 1        |
+| **Kafka Connect (Analytics)**     | 250m        | 400m      | 768MB          | 1GB          | 1        |
+| **Kafka UI**                      | 200m        | 300m      | 768MB          | 1GB          | 1        |
+| **KIC (Kong Ingress Controller)** | ~200m       | ~500m     | ~256MB         | ~512MB       | 1        |
+| **Strimzi Operators**             | ~100m       | ~200m     | ~256MB         | ~512MB       | 1        |
+
+> **Note**: These are minimum requirements for a functional deployment. Production environments should allocate additional resources for performance, monitoring, and high availability.
 
 ### 1. Create Namespaces
 
