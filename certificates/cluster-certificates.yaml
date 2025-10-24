@@ -18,7 +18,7 @@ spec:
     - "*.analytics.svc.cluster.local"
     - "*.partners.svc.cluster.local"
   issuerRef:
-    name: internal-ca
+    name: ca-issuer
     kind: ClusterIssuer
 ---
 # Internal cert signed by same CA but for kafka namespace
@@ -42,7 +42,7 @@ spec:
     - "*.analytics.svc.cluster.local"
     - "*.partners.svc.cluster.local"
   issuerRef:
-    name: internal-ca
+    name: ca-issuer
     kind: ClusterIssuer
 ---
 # Internal cert signed by same CA but for kafka-ui namespace
@@ -66,7 +66,7 @@ spec:
     - "*.analytics.svc.cluster.local"
     - "*.partners.svc.cluster.local"
   issuerRef:
-    name: internal-ca
+    name: ca-issuer
     kind: ClusterIssuer
 ---
 apiVersion: cert-manager.io/v1
@@ -89,5 +89,5 @@ spec:
     - "*.analytics.127-0-0-1.sslip.io"
     - "*.partners.127-0-0-1.sslip.io"
   issuerRef:
-    name: internal-ca
+    name: ca-issuer
     kind: ClusterIssuer

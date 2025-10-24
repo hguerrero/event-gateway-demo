@@ -36,13 +36,10 @@ kubectl create namespace kafka && kubectl create namespace keg && kubectl create
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
 
 # Create CA cert and CA issuer
-kubectl apply -f certificates/CA/self-signed-ca-cert.yaml -n keg
-kubectl apply -f certificates/CA/ca-issuer-bootstrap.yaml -n keg
+kubectl apply -f certificates/ca-bootstrap.yaml -n cert-manager
 
-# Deploy cluster issuer
-kubectl apply -f certificates/cluster-issuer.yaml -n keg
-# Deploy certificate resources
-kubectl apply -f certificates/keg-certificates.yaml -n keg
+# Deploy certificate resources for cluster
+kubectl apply -f certificates/cluster-certificates.yaml
 ```
 
 ### 3. Deploy Kafka Cluster
