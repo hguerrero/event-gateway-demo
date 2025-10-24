@@ -3,18 +3,25 @@ controller:
     image:
       tag: "3.5"
     env:
-      feature_gates: "FillIDs=true"
+      feature_gates: "FillIDs=true,GatewayAlpha=true"
     konnect:
       license:
         enabled: true
       enabled: true
-      # Don't set controlPlaneID or apiHostname here - use --set flags in helm install
+      # Don't set controlPlaneID or apiHostname here - use --set flags
       tlsClientCertSecretName: konnect-client-tls
+    resources:
+      requests:
+        memory: "0.25Gi"
+        cpu: "100m"
+      limits:
+        memory: "0.5Gi"
+        cpu: "250m"
 
 gateway:
   image:
     repository: kong/kong-gateway
-    tag: "3.12"
+    tag: "3.11"
   env:
     konnect_mode: "on"
     vitals: "off"
@@ -39,10 +46,19 @@ gateway:
     dns_stale_ttl: "3600"
   resources:
     requests:
-      cpu: 1
-      memory: "2Gi"
+      memory: 0.5Gi
+      cpu: 500m
+    limits:
+      memory: 1.5Gi
+      cpu: 1000m
   secretVolumes:
     - konnect-client-tls
-
-manager:
-  enabled: false
+  manager:
+    enabled: false
+  proxy:
+    stream:
+      - containerPort: 9094
+        servicePort: 9094
+        protocol: TCP
+        parameters:
+          - "ssl"
