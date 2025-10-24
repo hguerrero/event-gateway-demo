@@ -123,8 +123,8 @@ If running locally, ensure the loadbalancer service is accessible. Cloud deploym
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Kafka Client  │───▶│   Kong Gateway   │───▶│  KNEP Proxy     │
-│   (team-a)      │    │  (TLS Route)     │    │  (SNI Router)   │
+│   Kafka Client  │───▶│   Kong Gateway   │───▶│  KEG Proxy     │
+│   (TLS required)│    │  (TLS Route)     │    │  (SNI Router)   │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
                                                          │
                                                          ▼
@@ -140,3 +140,11 @@ If running locally, ensure the loadbalancer service is accessible. Cloud deploym
 2. **Kong Ingress Controller**: Routes TLS traffic based on SNI to KEG service
 3. **KEG**: Terminates TLS, applies topic prefixing, forwards to Kafka
 4. **Kafka Cluster**: Processes requests with prefixed topics (`<virtual-cluster-prefix>-<topic-name>`)
+
+## Internal Notes
+
+- **Kafka 4.0 Upgrade**: Updating to Kafka 4.0 will require updating to a matching Strimzi version
+- **Connector Creation Delays**: Need to verify if delays are between creating the connect clusters and deploying the connectors when taking a fully automated approach to deployment
+- **Virtual Cluster Limitations**: When adding new virtual clusters, Kubernetes services are not automatically generated. See keg/keg-vc-broker-dns.yaml for current manual approach. This will need to be automated in the future with the Kong Operator.
+  - External Kafka clients require updates to tlsroutes managed by KIC.
+- **Virtual Cluster Name Changes**: Changing virtual cluster names impacts DNS and certificates - use with caution. See certificates/cluster-certificates.yaml for current manual approach. This will need to be automated in the future with the Kong Operator.
