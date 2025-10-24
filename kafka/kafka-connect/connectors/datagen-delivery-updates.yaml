@@ -48,6 +48,15 @@ spec:
           {
             "name": "estimatedDelivery",
             "type": "long"
+          },
+          {
+            "name": "partner",
+            "type": {
+              "type": "string",
+              "arg.properties": {
+                "options": ["Amazon", "Walmart", "Target", "Best Buy", "Home Depot", "Costco", "FedEx", "DHL"]
+              }
+            }
           }
         ]
       }
