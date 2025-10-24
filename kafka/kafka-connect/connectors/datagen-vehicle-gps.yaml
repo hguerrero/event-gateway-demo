@@ -9,7 +9,7 @@ spec:
   class: io.confluent.kafka.connect.datagen.DatagenConnector
   tasksMax: 1
   config:
-    kafka.topic: vehicle-tracking
+    kafka.topic: vehicle-gps
     schema.keyfield: vehicleId
     max.interval: 500
     iterations: -1
