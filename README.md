@@ -98,6 +98,27 @@ helm install kong kong/ingress -n kic \
 kubectl apply -f kic/kic-gateway.yaml
 ```
 
+### 6. Deploy Kafka Connect
+
+```bash
+# Deploy Kafka Connect clusters
+kubectl apply -f kafka/kafka-connect/kafka-connect-operations.yaml -f kafka/kafka-connect/kafka-connect-analytics.yaml
+
+# Deploy Kafka Connect connectors
+kubectl apply -f kafka/kafka-connect/connectors/
+```
+
+### 7. Deploy Kafka UI
+
+```bash
+# Deploy Kafka UI
+kubectl apply -f kafka-ui/
+```
+
+### 8. Ensure loadbalancer service is accessible
+
+If running locally, ensure the loadbalancer service is accessible. Cloud deployments may require additional configuration to route traffic to the loadbalancer service. Local deployments will depend on the type of k8s cluster but tools like `minikube` can utilize `sudo minikube tunnel -p <your-profile-name>` to expose the loadbalancer service.
+
 ## 🏗️ Architecture
 
 ```
