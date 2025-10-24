@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: kong/kong-event-gateway-dev:main
+          image: kong/kong-event-gateway-dev@sha256:0d338361d74bde6b59d469569197fd6a263749efbe271b9d55e5c18b0d2c94fd
           imagePullPolicy: Always
           ports:
             - containerPort: 9092
