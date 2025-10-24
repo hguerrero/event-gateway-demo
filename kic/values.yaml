@@ -3,32 +3,32 @@ controller:
     image:
       tag: "3.5"
     env:
-      feature_gates: "FillIDs=true,GatewayAlpha=true"
+      feature_gates: "FillIDs=true"
     konnect:
       license:
         enabled: true
       enabled: true
-      controlPlaneID: "c2ef4cf3-bda4-43f5-81a2-251c2ff056ef"
+      # Don't set controlPlaneID or apiHostname here - use --set flags in helm install
       tlsClientCertSecretName: konnect-client-tls
-      apiHostname: "us.kic.api.konghq.com"
-    resources:
-      requests:
-        memory: "0.25Gi"
-        cpu: "100m"
-      limits:
-        memory: "0.5Gi"
-        cpu: "250m"
 
 gateway:
   image:
     repository: kong/kong-gateway
-    tag: "3.11"
+    tag: "3.12"
   env:
     konnect_mode: "on"
     vitals: "off"
     cluster_mtls: pki
-    cluster_telemetry_endpoint: "c643a64bf5.us.tp.konghq.com:443"
-    cluster_telemetry_server_name: "c643a64bf5.us.tp.konghq.com"
+    cluster_telemetry_endpoint:
+      valueFrom:
+        secretKeyRef:
+          name: konnect-config
+          key: CLUSTER_TELEMETRY_ENDPOINT
+    cluster_telemetry_server_name:
+      valueFrom:
+        secretKeyRef:
+          name: konnect-config
+          key: CLUSTER_TELEMETRY_SERVER_NAME
     cluster_cert: /etc/secrets/konnect-client-tls/tls.crt
     cluster_cert_key: /etc/secrets/konnect-client-tls/tls.key
     lua_ssl_trusted_certificate: system
@@ -39,19 +39,10 @@ gateway:
     dns_stale_ttl: "3600"
   resources:
     requests:
-      memory: 0.5Gi
-      cpu: 500m
-    limits:
-      memory: 1.5Gi
-      cpu: 1000m
+      cpu: 1
+      memory: "2Gi"
   secretVolumes:
     - konnect-client-tls
-  manager:
-    enabled: false
-  proxy:
-    stream:
-      - containerPort: 9094
-        servicePort: 9094
-        protocol: TCP
-        parameters:
-          - "ssl"
+
+manager:
+  enabled: false

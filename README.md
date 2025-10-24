@@ -50,14 +50,14 @@ curl -L https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47
   | sed 's/namespace: .*/namespace: kafka/' \
   | kubectl apply -f - -n kafka
 
-# Deploy Kafka resources
-kubectl apply -f kafka/ -n kafka
+# Deploy core Kafka cluster resources
+kubectl apply -f kafka/kafka-cluster/ -n kafka
 ```
 
 ### 4. Deploy KEG
 
 ```bash
-# Create Konnect secret (replace with your values)
+# Create Konnect secret specific to your KEG control plane. These values can be found in the Kong Konnect console when deploying a KEG dataplane
 kubectl create secret generic konnect-env-secret \
   --from-literal=KONNECT_REGION=<your-region> \
   --from-literal=KONNECT_DOMAIN=konghq.com \
@@ -66,15 +66,23 @@ kubectl create secret generic konnect-env-secret \
   --from-literal=KONNECT_CLIENT_KEY=<full-client-key> \
   -n keg
 
-# Deploy KEG components
-kubectl apply -f keg/ -n keg
+# Deploy KEG components and setup services and namespaces for the virtual clusters
+kubectl apply -f keg/
 ```
 
 ### 5. Configure Kong Ingress Controller (KIC) with TLSRoute support
 
 ```bash
-# Create Konnect client certificate secret (replace with your values)
-kubectl create secret tls konnect-client-tls -n kic --cert=./tls.crt --key=./tls.key
+# Create Konnect client certificate and config secrets specific to your KIC control plane. These values can be found in the Kong Konnect console when deploying a KIC dataplane.
+
+# Download the client certificate and key from the Kong Konnect console and save them to the current directory
+kubectl create secret tls konnect-client-tls -n kic --cert=<client-certificate>.crt --key=<client-key>.key
+# Create Konnect config secret specific to KIC
+kubectl create secret generic konnect-config -n kic \
+  --from-literal=CONTROL_PLANE_ID=<control-plane-id> \
+  --from-literal=CLUSTER_TELEMETRY_ENDPOINT=<cluster-telemetry-endpoint> \
+  --from-literal=CLUSTER_TELEMETRY_SERVER_NAME=<cluster-telemetry-server-name> \
+  --from-literal=API_HOSTNAME=<api-hostname>
 
 # Add Kong Ingress Controller repository
 helm repo add kong https://charts.konghq.com
@@ -82,10 +90,12 @@ helm repo update
 
 # Install KIC with TLSRoute support. KIC must be installed with the `--set controller.ingressController.env.feature_gates="FillIDs=true,GatewayAlpha=true"` flag to enable TLSRoute support. If installing with Helm, the provided values.yaml file already sets the `feature_gates` environment variable for you.
 helm install kong kong/ingress -n kic \
-  --values ./kic/values.yaml
+  --values ./kic/values.yaml \
+  --set controller.ingressController.konnect.controlPlaneID="$(kubectl get secret konnect-config -n kic -o jsonpath='{.data.CONTROL_PLANE_ID}' | base64 -d)" \
+  --set controller.ingressController.konnect.apiHostname="$(kubectl get secret konnect-config -n kic -o jsonpath='{.data.API_HOSTNAME}' | base64 -d)"
 
 # Deploy Gateway API resources
-kubectl apply -f kic/ -n kic
+kubectl apply -f kic/kic-gateway.yaml
 ```
 
 ## 🏗️ Architecture
