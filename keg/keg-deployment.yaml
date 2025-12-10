@@ -38,6 +38,17 @@ spec:
               value: "info,keg=info"
             - name: KEG__RUNTIME__HEALTH_LISTENER_ADDRESS_PORT
               value: "0.0.0.0:8080"
+            # OpenTelemetry Tracing Configuration
+            - name: KEG__OBSERVABILITY__OTLP__TRACING__ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.observability.svc.cluster.local:4317"
+            - name: OTEL_EXPORTER_OTLP_TIMEOUT
+              value: "10s"
+            - name: OTEL_SERVICE_NAME
+              value: "keg"
             - name: KEG_TLS_INTERNAL_KEY
               valueFrom:
                 secretKeyRef:

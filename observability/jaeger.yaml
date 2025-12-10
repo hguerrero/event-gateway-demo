@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: observability
+  labels:
+    app: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: jaegertracing/all-in-one:latest
+          ports:
+            - containerPort: 6831
+              name: agent-udp
+              protocol: UDP
+            - containerPort: 16686
+              name: query-http
+            - containerPort: 14268
+              name: collector-http
+            - containerPort: 4317
+              name: otlp-grpc
+          env:
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "true"
+            - name: QUERY_BASE_PATH
+              value: /jaeger
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 200m
+            limits:
+              memory: 1Gi
+              cpu: 500m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: observability
+  labels:
+    app: jaeger
+spec:
+  ports:
+    - name: agent-udp
+      port: 6831
+      targetPort: 6831
+      protocol: UDP
+    - name: query-http
+      port: 16686
+      targetPort: 16686
+      protocol: TCP
+    - name: collector-http
+      port: 14268
+      targetPort: 14268
+      protocol: TCP
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+  selector:
+    app: jaeger
+  type: ClusterIP

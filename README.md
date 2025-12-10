@@ -9,6 +9,8 @@ This repository provides Kubernetes-ready manifests for deploying Kong Event Gat
 The Kafka cluster is managed by the Strimzi Operator and is configured with KRaft mode.
 Data is produced in real-time by Kafka Connect. A Kafka UI viewable in your browser (`http://localhost:80`) is automatically deployed and configured to connect to the Kafka cluster. External access is mediated by the Kong Ingress Controller. Configuration for the kafkactl CLI tool is provided for easy access to the Kafka cluster, but you can also use an external client of your choice.
 
+Observability is provided through OpenTelemetry, with traces exported to Jaeger and metrics to Prometheus. Both Jaeger and Prometheus UIs are accessible via HTTPRoutes through the Kong Ingress Controller.
+
 All external access (including accessing the Kafka UI) requires utilizing the deployed loadbalancer service. Cloud deployments may require additional configuration to route traffic to the loadbalancer service. Local deployments will depend on the type of k8s cluster but tools like `minikube` can utilize `sudo minikube tunnel -p <your-profile-name>` to expose the loadbalancer service.
 
 ## 📋 Prerequisites
@@ -27,8 +29,8 @@ This deployment includes multiple components that require adequate cluster resou
 
 ### Cluster Requirements
 
-- **Total CPU**: ~4.5 cores
-- **Total Memory**: ~8GB
+- **Total CPU**: ~5.5 cores
+- **Total Memory**: ~10GB
 - **Storage**: Ephemeral storage for Kafka brokers (persistent storage recommended for production)
 
 ### Component Resource Breakdown
@@ -40,6 +42,9 @@ This deployment includes multiple components that require adequate cluster resou
 | **Kafka Connect (Operations)**    | 250m        | 400m      | 768MB          | 1GB          | 1        |
 | **Kafka Connect (Analytics)**     | 250m        | 400m      | 768MB          | 1GB          | 1        |
 | **Kafka UI**                      | 200m        | 300m      | 768MB          | 1GB          | 1        |
+| **OpenTelemetry Collector**       | 200m        | 500m      | 256MB          | 512MB        | 1        |
+| **Jaeger**                        | 200m        | 500m      | 512MB          | 1GB          | 1        |
+| **Prometheus**                    | 200m        | 500m      | 512MB          | 1GB          | 1        |
 | **KIC (Kong Ingress Controller)** | ~200m       | ~500m     | ~256MB         | ~512MB       | 1        |
 | **Strimzi Operators**             | ~100m       | ~200m     | ~256MB         | ~512MB       | 1        |
 
@@ -48,7 +53,7 @@ This deployment includes multiple components that require adequate cluster resou
 ### 1. Create Namespaces
 
 ```bash
-kubectl create namespace kafka && kubectl create namespace keg && kubectl create namespace kafka-ui && kubectl create namespace kic
+kubectl create namespace kafka && kubectl create namespace keg && kubectl create namespace kafka-ui && kubectl create namespace kic && kubectl create namespace observability
 ```
 
 ### 2. Setup TLS Certificates
@@ -137,7 +142,38 @@ kubectl apply -f kafka/kafka-connect/connectors/
 kubectl apply -f kafka-ui/
 ```
 
-### 8. Ensure loadbalancer service is accessible
+### 8. Deploy Observability Stack
+
+```bash
+# Deploy observability components (Jaeger, Prometheus, OpenTelemetry Collector)
+# Note: Deploy Jaeger first as the OTEL collector references it
+# All observability components are deployed in the observability namespace
+kubectl apply -f observability/jaeger.yaml
+kubectl apply -f observability/prometheus.yaml
+kubectl apply -f observability/otel-collector.yaml
+
+# Deploy HTTPRoutes for accessing observability UIs
+kubectl apply -f observability/jaeger-httproute.yaml
+kubectl apply -f observability/prometheus-httproute.yaml
+```
+
+The observability stack provides:
+- **Jaeger**: Distributed tracing UI accessible at `http://<loadbalancer-ip>/jaeger`
+- **Prometheus**: Metrics querying UI accessible at `http://<loadbalancer-ip>/prometheus`
+- **OpenTelemetry Collector**: Receives traces and metrics from Event Gateway and forwards them to Jaeger and Prometheus
+
+The Event Gateway is configured with OpenTelemetry tracing enabled and exports:
+- **Traces**: Sent via OTLP/gRPC to the OpenTelemetry Collector, which forwards to Jaeger
+- **Metrics**: Exposed on the health listener (port 8080) and scraped by the OpenTelemetry Collector, which forwards to Prometheus
+
+Key metrics available include:
+- `kong_keg_kafka_connections_active`: Active Kafka connections
+- `kong_keg_kafka_backend_roundtrip_duration_seconds`: Backend roundtrip duration
+- `kong_keg_kafka_request_received_count_total`: Total API requests received
+
+The `OTEL_SERVICE_NAME` environment variable (set to `keg`) identifies the service name in traces and metrics, making it easier to filter and identify Event Gateway data in observability tools.
+
+### 9. Ensure loadbalancer service is accessible
 
 If running locally, ensure the loadbalancer service is accessible. Cloud deployments may require additional configuration to route traffic to the loadbalancer service. Local deployments will depend on the type of k8s cluster but tools like `minikube` can utilize `sudo minikube tunnel -p <your-profile-name>` to expose the loadbalancer service.
 
