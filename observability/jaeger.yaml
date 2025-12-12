@@ -23,6 +23,7 @@ data:
     extensions:
       jaeger_storage:
         # BADGER STORAGE CONFIGURATION:
+        backends:
           primary_storage:
             badger:
               ephemeral: false
