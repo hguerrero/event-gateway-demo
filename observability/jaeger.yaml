@@ -1,3 +1,89 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jaeger-badger-pvc
+  namespace: observability
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi # Request 10GB of disk space - adjust based on trace volume
+  # storageClassName: standard  # Uncomment if you need a specific storage class
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jaeger-config
+  namespace: observability
+data:
+  config.yaml: |
+    # Jaeger v2 configuration using OpenTelemetry Collector format
+    extensions:
+      jaeger_storage:
+        # BADGER STORAGE CONFIGURATION:
+          primary_storage:
+            badger:
+              ephemeral: false
+              # Directory configuration for Badger storage
+              directories:
+                keys: /badger/key
+                values: /badger/data
+      
+      # Jaeger query extension provides the web UI and API
+      jaeger_query:
+        storage:
+          traces: primary_storage  
+        # Base path for serving the UI (matches httproute routing prefix)
+        base_path: /jaeger
+      
+      healthcheckv2:
+        use_v2: true
+        http:
+          endpoint: 0.0.0.0:13133
+          status:
+            enabled: true
+            path: "/health/status"
+
+    # Receivers define how traces are ingested
+    receivers:
+      # OTLP (OpenTelemetry Protocol) receiver - modern standard
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      # Jaeger native protocol receiver - for legacy Jaeger clients
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+          thrift_binary:
+            endpoint: 0.0.0.0:6832
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 50
+    exporters:
+      jaeger_storage_exporter:
+        trace_storage: primary_storage
+    service:
+      extensions:
+        - jaeger_storage
+        - jaeger_query
+        - healthcheckv2     
+      pipelines:
+        traces:
+          receivers: [otlp, jaeger]
+          processors: [batch]
+          exporters: [jaeger_storage_exporter]
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,22 +103,61 @@ spec:
     spec:
       containers:
         - name: jaeger
-          image: jaegertracing/all-in-one:latest
+          image: jaegertracing/jaeger:2.3.0
+          args:
+            - "--config=/config/config.yaml"
           ports:
             - containerPort: 6831
-              name: agent-udp
+              name: agent-compact
               protocol: UDP
-            - containerPort: 16686
-              name: query-http
+            - containerPort: 6832
+              name: agent-binary
+              protocol: UDP
+            - containerPort: 14250
+              name: grpc
+              protocol: TCP
             - containerPort: 14268
-              name: collector-http
+              name: thrift-http
+              protocol: TCP
             - containerPort: 4317
               name: otlp-grpc
-          env:
-            - name: COLLECTOR_OTLP_ENABLED
-              value: "true"
-            - name: QUERY_BASE_PATH
-              value: /jaeger
+              protocol: TCP
+            - containerPort: 4318
+              name: otlp-http
+              protocol: TCP
+            # Query/UI ports
+            - containerPort: 16686
+              name: query-http
+              protocol: TCP
+            - containerPort: 16685
+              name: query-grpc
+              protocol: TCP
+            # Health check port (from healthcheckv2 extension)
+            - containerPort: 13133
+              name: health
+              protocol: TCP
+          volumeMounts:
+            - name: badger-data
+              mountPath: /badger
+            - name: config
+              mountPath: /config
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health/status
+              port: 13133
+            initialDelaySeconds: 60 # Increased from 30s - give everything time to start
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /health/status
+              port: 13133
+            initialDelaySeconds: 45 # Increased from 20s
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
           resources:
             requests:
               memory: 512Mi
@@ -40,6 +165,13 @@ spec:
             limits:
               memory: 1Gi
               cpu: 500m
+      volumes:
+        - name: badger-data
+          persistentVolumeClaim:
+            claimName: jaeger-badger-pvc
+        - name: config
+          configMap:
+            name: jaeger-config
 ---
 apiVersion: v1
 kind: Service
@@ -50,21 +182,43 @@ metadata:
     app: jaeger
 spec:
   ports:
-    - name: agent-udp
+    - name: agent-compact
       port: 6831
       targetPort: 6831
       protocol: UDP
-    - name: query-http
-      port: 16686
-      targetPort: 16686
+    - name: agent-binary
+      port: 6832
+      targetPort: 6832
+      protocol: UDP
+    - name: grpc
+      port: 14250
+      targetPort: 14250
       protocol: TCP
-    - name: collector-http
+    - name: thrift-http
       port: 14268
       targetPort: 14268
       protocol: TCP
     - name: otlp-grpc
       port: 4317
       targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    # Query/UI ports
+    - name: query-http
+      port: 16686
+      targetPort: 16686
+      protocol: TCP
+    - name: query-grpc
+      port: 16685
+      targetPort: 16685
+      protocol: TCP
+    # Health check port
+    - name: health
+      port: 13133
+      targetPort: 13133
       protocol: TCP
   selector:
     app: jaeger
