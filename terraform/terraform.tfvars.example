@@ -1,0 +1,26 @@
+######### REQUIRED #########
+# konnect_token can be provided via environment variable: TF_VAR_konnect_token
+# Example: export TF_VAR_konnect_token="your-konnect-api-token-here"
+# Or uncomment and set directly:
+# konnect_token  = "your-konnect-api-token-here"
+
+# 32 byte base64 encoded static encryption key for operations vc
+operations_gps_encryption_key = "your-32-byte-enc-key"
+
+######### OPTIONAL #########
+# Konnect Configuration
+konnect_server_url = "https://us.api.konghq.com"
+
+# Auth Server Configuration
+auth_server_name        = "AcmeCo"
+auth_server_audience    = "http://myhttpbin.dev"
+auth_server_description = "Auth server for the Appointment dev environment"
+
+# Scope Configuration
+scope_name        = "kafka"
+scope_description = "Scope to test Kong Identity"
+
+# Token Duration Configuration
+access_token_duration = 3600
+id_token_duration     = 3600
+
