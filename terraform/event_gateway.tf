@@ -286,178 +286,30 @@ resource "konnect_event_gateway_consume_policy_decrypt" "operations_gps_decrypt"
   }
 }
 
+# External Partners VC Policies
+resource "konnect_event_gateway_consume_policy_schema_validation" "external_partners_consume_schema_validation" {
+  provider           = konnect-beta
+  name               = "external-partners-consume-schema-validation"
+  description        = "Policy to validate schema on external partners topic"
+  gateway_id         = konnect_event_gateway.event_gateway_terraform.id
+  virtual_cluster_id = konnect_event_gateway_virtual_cluster.external_partners_vc.id
 
+  enabled   = true
+  condition = "context.topic.name == 'delivery-updates'"
+  config = {
+    key_validation_action   = "mark"
+    type                    = "json"
+    value_validation_action = "mark"
+  }
+}
 
-
-# resource "konnect_event_gateway_schema_registry" "schema_reg" {
-#   provider   = konnect-beta
-#   gateway_id = konnect_event_gateway.event_gateway_terraform.id
-#   confluent = {
-#     name        = "schema_registry"
-#     description = "confluent schema registry"
-#     config = {
-#       endpoint    = "http://schema-registry:8081"
-#       schema_type = "json"
-#       authentication = {
-#         basic = {
-#           username = "alice"
-#           password = "alice_secret"
-#         }
-#       }
-#     }
-#   }
-# }
-
-# resource "konnect_event_gateway_static_key" "transactions_encryption_key" {
-#   provider    = konnect-beta
-#   name        = "transactions_encryption_key"
-#   description = "Encryption key for transactions topic"
-#   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
-
-#   value = "$${vault.env['KONNECT_TRANSACTION_ENCRYPTION_KEY']}"
-# }
-
-# // Policies
-
-# resource "konnect_event_gateway_cluster_policy_acls" "acl_topic_policy_analytics" {
-#   provider           = konnect-beta
-#   name               = "analytics_acl_topic_policy"
-#   description        = "ACL policy for ensuring access to topics"
-#   gateway_id         = konnect_event_gateway.event_gateway_terraform.id
-#   virtual_cluster_id = konnect_event_gateway_virtual_cluster.analytics_virtual_cluster.id
-
-#   condition = "context.auth.principal.name == \"analytics_username\""
-#   config = {
-#     rules = [
-#       {
-#         action = "allow"
-#         operations = [
-#           { name = "describe" },
-#           { name = "describe_configs" },
-#           { name = "read" },
-#           { name = "write" }
-#         ]
-#         resource_type = "topic"
-#         resource_names = [{
-#           match = "*"
-#         }]
-#       }
-#     ]
-#   }
-# }
-
-# resource "konnect_event_gateway_cluster_policy_acls" "acl_topic_policy_payments" {
-#   provider           = konnect-beta
-#   name               = "payments_acl_topic_policy"
-#   description        = "ACL policy for ensuring access to topics"
-#   gateway_id         = konnect_event_gateway.event_gateway_terraform.id
-#   virtual_cluster_id = konnect_event_gateway_virtual_cluster.payments_virtual_cluster.id
-
-#   config = {
-#     rules = [
-#       {
-#         action = "allow"
-#         operations = [
-#           { name = "describe" },
-#           { name = "describe_configs" },
-#           { name = "read" },
-#           { name = "write" }
-#         ]
-#         resource_type = "topic"
-#         resource_names = [{
-#           match = "*"
-#         }]
-#       },
-#       {
-#         action = "deny"
-#         operations = [
-#           { name = "write" }
-#         ]
-#         resource_type = "topic"
-#         resource_names = [{
-#           match = "user_actions"
-#         }]
-#       }
-#     ]
-#   }
-# }
-
-# resource "konnect_event_gateway_produce_policy_encrypt" "payments_encrypt_transactions" {
-#   provider           = konnect-beta
-#   name               = "payments_encrypt_transactions"
-#   description        = "Policy to encrypt transaction data on payments produced"
-#   gateway_id         = konnect_event_gateway.event_gateway_terraform.id
-#   virtual_cluster_id = konnect_event_gateway_virtual_cluster.payments_virtual_cluster.id
-
-#   condition = "context.topic.name == \"transactions\""
-#   config = {
-#     failure_mode   = "error"
-#     part_of_record = ["value"]
-#     encryption_key = {
-#       static = {
-#         key = {
-#           reference_by_id = {
-#             id = konnect_event_gateway_static_key.transactions_encryption_key.id
-#           }
-#         }
-#       }
-#     }
-#   }
-# }
-
-# resource "konnect_event_gateway_consume_policy_decrypt" "payments_decrypt_transactions" {
-#   provider           = konnect-beta
-#   name               = "payments_decrypt_transactions"
-#   description        = "Policy to decrypt transaction data on payments produced"
-#   gateway_id         = konnect_event_gateway.event_gateway_terraform.id
-#   virtual_cluster_id = konnect_event_gateway_virtual_cluster.payments_virtual_cluster.id
-
-#   condition = "context.topic.name == \"transactions\""
-#   config = {
-#     failure_mode   = "error"
-#     part_of_record = ["value"]
-#     key_sources = [{
-#       static = {}
-#     }]
-#   }
-# }
-
-# resource "konnect_event_gateway_consume_policy_skip_record" "payments_skip_records" {
-#   provider           = konnect-beta
-#   name               = "payments_skip_records"
-#   description        = "Policy to skip records based on header"
-#   gateway_id         = konnect_event_gateway.event_gateway_terraform.id
-#   virtual_cluster_id = konnect_event_gateway_virtual_cluster.payments_virtual_cluster.id
-
-#   condition = "record.headers['sensitive'] == '1'"
-# }
-
-# /*
-# resource "konnect_event_gateway_produce_policy_schema_validation" "schema_val" {
-#     provider = konnect-beta
-#     name = "schema_val"
-#     description = "schema validation"
-#     gateway_id = konnect_event_gateway.event_gateway_terraform.id
-#     virtual_cluster_id = konnect_event_gateway_virtual_cluster.analytics_virtual_cluster.id
-
-#     config = {
-#       confluent_schema_registry = {
-#         schema_registry = {
-#           schema_registry_reference_by_name = {
-#             name = "schema_registry"
-#           }
-#         }
-#         value_validation_action = "reject"
-#       }
-#     }
-
-# }
-# */
-
-# output "KONNECT_CONTROL_PLANE_ID" {
-#   value = konnect_event_gateway.event_gateway_terraform.id
-# }
-
-# output "KONNECT_TRANSACTION_ENCRYPTION_KEY" {
-#   value = file("./enc.key")
-# }
+resource "konnect_event_gateway_consume_policy_skip_record" "my_eventgatewayconsumepolicyskiprecord" {
+  provider           = konnect-beta
+  condition          = " record.value.content['partner'] != 'Amazon'"
+  enabled            = true
+  name               = "external-partners-consume-skip-record"
+  description        = "Policy to skip records based on partner"
+  gateway_id         = konnect_event_gateway.event_gateway_terraform.id
+  virtual_cluster_id = konnect_event_gateway_virtual_cluster.external_partners_vc.id
+  parent_policy_id   = konnect_event_gateway_consume_policy_schema_validation.external_partners_consume_schema_validation.id
+}
