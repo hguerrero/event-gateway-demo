@@ -68,9 +68,13 @@ data:
           thrift_binary:
             endpoint: 0.0.0.0:6832
     processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 1024    # ~1GB (67% of 1.5GB limit)
+        spike_limit_mib: 256
       batch:
-        timeout: 1s
-        send_batch_size: 50
+        timeout: 500ms        
+        send_batch_size: 25    
     exporters:
       jaeger_storage_exporter:
         trace_storage: primary_storage
@@ -161,10 +165,10 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              memory: 512Mi
+              memory: 768Mi
               cpu: 200m
             limits:
-              memory: 1Gi
+              memory: 1.5Gi
               cpu: 500m
       volumes:
         - name: badger-data
