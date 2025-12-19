@@ -6,7 +6,7 @@ resource "konnect_event_gateway" "event_gateway_terraform" {
 resource "konnect_event_gateway_backend_cluster" "backend_cluster" {
   provider    = konnect-beta
   name        = "backend_cluster"
-  description = "terraform cluster"
+  description = "Strimzi managed 3 node Kafka cluster"
   gateway_id  = konnect_event_gateway.event_gateway_terraform.id
 
   insecure_allow_anonymous_virtual_cluster_auth = true
@@ -16,9 +16,7 @@ resource "konnect_event_gateway_backend_cluster" "backend_cluster" {
   }
 
   bootstrap_servers = [
-    "kafka1:9092",
-    "kafka2:9092",
-    "kafka3:9092"
+    "backend-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
   ]
 
   tls = {
