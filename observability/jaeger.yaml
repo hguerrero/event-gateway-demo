@@ -31,6 +31,8 @@ data:
               directories:
                 keys: /badger/key
                 values: /badger/data
+              ttl:
+                spans: 48h
       
       # Jaeger query extension provides the web UI and API
       jaeger_query:
