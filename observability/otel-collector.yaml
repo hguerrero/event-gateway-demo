@@ -19,30 +19,49 @@ data:
                 - targets: ['kong-event-gateway.keg.svc.cluster.local:8080']
 
     processors:
-      batch: {}
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 384
+        spike_limit_mib: 64
+        
+      batch:
+        timeout: 1s
+        send_batch_size: 100
 
     extensions:
-      health_check: {}
+      health_check:
+        endpoint: 0.0.0.0:13133  
 
     exporters:
       otlp/jaeger:
         endpoint: jaeger.observability.svc.cluster.local:4317
         tls:
           insecure: true
+        retry_on_failure:
+          enabled: true
+          initial_interval: 1s
+          max_interval: 30s
+          max_elapsed_time: 300s
+        sending_queue:
+          enabled: true
+          num_consumers: 10
+          queue_size: 1000
+          
       prometheusremotewrite:
         endpoint: http://prometheus.observability.svc.cluster.local:9090/prometheus/api/v1/write
         tls:
           insecure: true
 
     service:
+      extensions: [health_check] 
       pipelines:
         traces:
           receivers: [otlp/keg]
-          processors: [batch]
+          processors: [memory_limiter, batch]
           exporters: [otlp/jaeger]
         metrics:
           receivers: [prometheus/keg]
-          processors: [batch]
+          processors: [memory_limiter, batch]
           exporters: [prometheusremotewrite]
 ---
 apiVersion: apps/v1
@@ -64,7 +83,7 @@ spec:
     spec:
       containers:
         - name: otel-collector
-          image: otel/opentelemetry-collector-contrib:latest
+          image: otel/opentelemetry-collector-contrib:0.142.0
           args: ["--config=/etc/otel-collector-config.yaml"]
           volumeMounts:
             - name: otel-collector-config
@@ -73,13 +92,31 @@ spec:
           ports:
             - containerPort: 4317
               name: otlp-grpc
+            - containerPort: 13133
+              name: health
           resources:
             requests:
-              memory: 256Mi
+              memory: 384Mi
               cpu: 200m
             limits:
               memory: 512Mi
               cpu: 500m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
       volumes:
         - name: otel-collector-config
           configMap:
@@ -97,6 +134,10 @@ spec:
     - name: otlp-grpc
       port: 4317
       targetPort: 4317
+      protocol: TCP
+    - name: health
+      port: 13133
+      targetPort: 13133
       protocol: TCP
   selector:
     app: otel-collector
