@@ -111,7 +111,7 @@ spec:
     spec:
       containers:
         - name: jaeger
-          image: jaegertracing/jaeger:2.13.0
+          image: jaegertracing/jaeger:2.12.0
           args:
             - "--config=/config/config.yaml"
           ports:
