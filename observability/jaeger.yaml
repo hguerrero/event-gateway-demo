@@ -70,11 +70,12 @@ data:
     processors:
       memory_limiter:
         check_interval: 1s
-        limit_mib: 1024    # ~1GB (67% of 1.5GB limit)
-        spike_limit_mib: 256
+        limit_mib: 1536      # 1.5GB 
+        spike_limit_mib: 384 
       batch:
-        timeout: 500ms        
-        send_batch_size: 25    
+        timeout: 100ms          
+        send_batch_size: 10      
+        send_batch_max_size: 15 
     exporters:
       jaeger_storage_exporter:
         trace_storage: primary_storage
@@ -86,7 +87,7 @@ data:
       pipelines:
         traces:
           receivers: [otlp, jaeger]
-          processors: [batch]
+          processors: [memory_limiter, batch]
           exporters: [jaeger_storage_exporter]
 ---
 apiVersion: apps/v1
@@ -165,10 +166,10 @@ spec:
             failureThreshold: 5
           resources:
             requests:
-              memory: 768Mi
+              memory: 1Gi
               cpu: 200m
             limits:
-              memory: 1.5Gi
+              memory: 2Gi
               cpu: 500m
       volumes:
         - name: badger-data
