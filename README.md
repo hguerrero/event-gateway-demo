@@ -9,7 +9,7 @@ This repository provides Kubernetes-ready manifests for deploying Kong Event Gat
 The Kafka cluster is managed by the Strimzi Operator and is configured with KRaft mode.
 Data is produced in real-time by Kafka Connect. A Kafka UI viewable in your browser (`http://localhost:80`) is automatically deployed and configured to connect to the Kafka cluster. External access is mediated by the Kong Ingress Controller. Configuration for the kafkactl CLI tool is provided for easy access to the Kafka cluster, but you can also use an external client of your choice.
 
-Observability is provided through OpenTelemetry, with traces exported to Jaeger and metrics to Prometheus. Both Jaeger and Prometheus UIs are accessible via HTTPRoutes through the Kong Ingress Controller.
+Observability is provided through OpenTelemetry, with traces exported to Jaeger and metrics to Prometheus. Both Jaeger (`http://localhost/jaeger`) and Prometheus (`http://localhost/prometheus`) UIs are accessible via HTTPRoutes through the Kong Ingress Controller.
 
 All external access (including accessing the Kafka UI) requires utilizing the deployed loadbalancer service. Cloud deployments may require additional configuration to route traffic to the loadbalancer service. Local deployments will depend on the type of k8s cluster but tools like `minikube` can utilize `sudo minikube tunnel -p <your-profile-name>` to expose the loadbalancer service.
 
@@ -18,10 +18,60 @@ All external access (including accessing the Kafka UI) requires utilizing the de
 - Kubernetes cluster (1.24+)
 - kubectl configured
 - helm installed
-- [Gateway API experimental](https://gateway-api.sigs.k8s.io/) installed in cluster
+- Terraform installed (required for Kong Event Gateway configuration in Konnect)
+- [Gateway API experimental](https://gateway-api.sigs.k8s.io/) v1.3.0 installed in cluster
   ```bash
   kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
   ```
+- cert-manager (will be installed in step 2)
+- Strimzi Kafka Operator (will be installed in step 3)
+- Kong Konnect account with API token (required for Terraform setup)
+- For minikube users: minikube installed and configured
+
+> **⚠️ Warning for Minikube Users**: If leave your minikube cluster running while your computer sleeps, over time your system clock may get out of sync and you may experience issues with certificate validation and service connectivity. A simple restart of minikube (`minikube stop && minikube start`) typically resolves these issues.
+
+## 🖥️ Minikube-Specific Setup (Optional)
+
+If you're using minikube for local development, consider the following additional setup:
+
+### Enable Metrics Server
+
+The metrics server addon is useful for resource monitoring and autoscaling features:
+
+```bash
+minikube addons enable metrics-server
+```
+
+### Resource Considerations
+
+Ensure your minikube cluster has sufficient resources allocated. The deployment requires approximately:
+
+- **CPU**: ~3.2 cores (requests) / ~5.8 cores (limits)
+- **Memory**: ~8GB (requests) / ~12GB (limits)
+
+You can configure these when starting minikube:
+
+```bash
+minikube start --cpus=6 --memory=12g
+```
+
+Or adjust an existing cluster:
+
+```bash
+minikube stop
+minikube start --cpus=6 --memory=12g
+```
+
+### LoadBalancer Access
+
+For minikube, use `minikube tunnel` to expose LoadBalancer services:
+
+```bash
+# Run in a separate terminal (requires sudo)
+sudo minikube tunnel -p <your-profile-name>
+```
+
+This allows external access to services via the LoadBalancer IP.
 
 ## 💻 Resource Requirements
 
@@ -29,24 +79,25 @@ This deployment includes multiple components that require adequate cluster resou
 
 ### Cluster Requirements
 
-- **Total CPU**: ~5.5 cores
-- **Total Memory**: ~10GB
+- **Total CPU**: ~3.2 cores (requests) / ~5.8 cores (limits)
+- **Total Memory**: ~8GB (requests) / ~12GB (limits)
 - **Storage**: Ephemeral storage for Kafka brokers (persistent storage recommended for production)
 
 ### Component Resource Breakdown
 
-| Component                         | CPU Request | CPU Limit | Memory Request | Memory Limit | Replicas |
-| --------------------------------- | ----------- | --------- | -------------- | ------------ | -------- |
-| **Kafka Brokers**                 | 750m        | 1.2 cores | 2.3GB          | 3GB          | 3        |
-| **KEG Gateway**                   | 500m        | 750m      | 512MB          | 1GB          | 1        |
-| **Kafka Connect (Operations)**    | 250m        | 400m      | 768MB          | 1GB          | 1        |
-| **Kafka Connect (Analytics)**     | 250m        | 400m      | 768MB          | 1GB          | 1        |
-| **Kafka UI**                      | 200m        | 300m      | 768MB          | 1GB          | 1        |
-| **OpenTelemetry Collector**       | 200m        | 500m      | 256MB          | 512MB        | 1        |
-| **Jaeger**                        | 200m        | 500m      | 512MB          | 1GB          | 1        |
-| **Prometheus**                    | 200m        | 500m      | 512MB          | 1GB          | 1        |
-| **KIC (Kong Ingress Controller)** | ~200m       | ~500m     | ~256MB         | ~512MB       | 1        |
-| **Strimzi Operators**             | ~100m       | ~200m     | ~256MB         | ~512MB       | 1        |
+| Component                      | CPU Request | CPU Limit | Memory Request | Memory Limit | Replicas |
+| ------------------------------ | ----------- | --------- | -------------- | ------------ | -------- |
+| **Kafka Brokers**              | 750m        | 1.2 cores | 2.3GB          | 3GB          | 3        |
+| **KEG Gateway**                | 500m        | 750m      | 512MB          | 1GB          | 1        |
+| **Kafka Connect (Operations)** | 250m        | 400m      | 768MB          | 1GB          | 1        |
+| **Kafka Connect (Analytics)**  | 250m        | 400m      | 768MB          | 1GB          | 1        |
+| **Kafka UI**                   | 200m        | 300m      | 768MB          | 1GB          | 1        |
+| **OpenTelemetry Collector**    | 200m        | 500m      | 384Mi          | 512Mi        | 1        |
+| **Jaeger**                     | 200m        | 500m      | 1Gi            | 2Gi          | 1        |
+| **Prometheus**                 | 200m        | 500m      | 512MB          | 1GB          | 1        |
+| **KIC Controller**             | 100m        | 250m      | 256Mi          | 512Mi        | 1        |
+| **KIC Gateway**                | 500m        | 1000m     | 512Mi          | 1.5Gi        | 1        |
+| **Strimzi Operators**          | 100m        | 400m      | 256Mi          | 512Mi        | 1        |
 
 > **Note**: These are minimum requirements for a functional deployment. Production environments should allocate additional resources for performance, monitoring, and high availability.
 
@@ -59,7 +110,7 @@ kubectl create namespace kafka && kubectl create namespace keg && kubectl create
 ### 2. Setup TLS Certificates
 
 ```bash
-# Install cert-manager in the clusterif not already installed
+# Install cert-manager in the cluster if not already installed
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
 
 # Create CA cert and CA issuer
@@ -81,7 +132,60 @@ curl -L https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47
 kubectl apply -f kafka/kafka-cluster/ -n kafka
 ```
 
-### 4. Deploy KEG
+### 4. Configure Kong Event Gateway with Terraform
+
+This step configures the Kong Event Gateway in Konnect, including the backend cluster, virtual clusters, listeners, and policies. This should be completed before deploying KEG (step 5).
+
+**Prerequisites:**
+
+- Terraform installed ([installation instructions](https://developer.hashicorp.com/terraform/downloads))
+- Kong Konnect personal access token (create one in the Konnect console)
+
+**Generate the encryption key:**
+
+```bash
+# Generate a 32-byte random key and encode it in base64
+openssl rand -base64 32
+```
+
+**Setup Terraform configuration:**
+
+```bash
+cd terraform
+
+# Copy the example variables file
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit terraform.tfvars and set the required variables:
+# - konnect_token: Your Kong Konnect API token (or set via TF_VAR_konnect_token environment variable)
+# - operations_gps_encryption_key: The base64-encoded key generated above
+# - konnect_server_url: Your Konnect region URL (default: https://us.api.konghq.com)
+```
+
+````
+
+**Initialize and apply Terraform:**
+
+```bash
+# Initialize Terraform (downloads providers)
+terraform init
+
+# Review the planned changes
+terraform plan
+
+# Apply the configuration (creates resources in Konnect)
+terraform apply
+````
+
+After successful application, Terraform will create:
+
+- Event Gateway in Konnect
+- Backend cluster configuration
+- Three virtual clusters (Operations-Team, Analytics-Team, External-Partners)
+- Internal and external listeners with TLS policies
+- Encryption, schema validation, and record skipping policies
+
+### 5. Deploy KEG
 
 ```bash
 # Create Konnect secret specific to your KEG control plane. These values can be found in the Kong Konnect console when deploying a KEG dataplane
@@ -97,7 +201,7 @@ kubectl create secret generic konnect-env-secret \
 kubectl apply -f keg/
 ```
 
-### 5. Configure Kong Ingress Controller (KIC) with TLSRoute support
+### 6. Configure Kong Ingress Controller (KIC) with TLSRoute support
 
 ```bash
 # Create Konnect client certificate and config secrets specific to your KIC control plane. These values can be found in the Kong Konnect console when deploying a KIC dataplane.
@@ -125,7 +229,7 @@ helm install kong kong/ingress -n kic \
 kubectl apply -f kic/kic-gateway.yaml
 ```
 
-### 6. Deploy Kafka Connect
+### 7. Deploy Kafka Connect
 
 ```bash
 # Deploy Kafka Connect clusters
@@ -135,14 +239,14 @@ kubectl apply -f kafka/kafka-connect/kafka-connect-operations.yaml -f kafka/kafk
 kubectl apply -f kafka/kafka-connect/connectors/
 ```
 
-### 7. Deploy Kafka UI
+### 8. Deploy Kafka UI
 
 ```bash
 # Deploy Kafka UI
 kubectl apply -f kafka-ui/
 ```
 
-### 8. Deploy Observability Stack
+### 9. Deploy Observability Stack
 
 ```bash
 # Deploy observability components (Jaeger, Prometheus, OpenTelemetry Collector)
@@ -158,22 +262,25 @@ kubectl apply -f observability/prometheus-httproute.yaml
 ```
 
 The observability stack provides:
+
 - **Jaeger**: Distributed tracing UI accessible at `http://<loadbalancer-ip>/jaeger`
 - **Prometheus**: Metrics querying UI accessible at `http://<loadbalancer-ip>/prometheus`
 - **OpenTelemetry Collector**: Receives traces and metrics from Event Gateway and forwards them to Jaeger and Prometheus
 
 The Event Gateway is configured with OpenTelemetry tracing enabled and exports:
+
 - **Traces**: Sent via OTLP/gRPC to the OpenTelemetry Collector, which forwards to Jaeger
 - **Metrics**: Exposed on the health listener (port 8080) and scraped by the OpenTelemetry Collector, which forwards to Prometheus
 
 Key metrics available include:
+
 - `kong_keg_kafka_connections_active`: Active Kafka connections
 - `kong_keg_kafka_backend_roundtrip_duration_seconds`: Backend roundtrip duration
 - `kong_keg_kafka_request_received_count_total`: Total API requests received
 
 The `OTEL_SERVICE_NAME` environment variable (set to `keg`) identifies the service name in traces and metrics, making it easier to filter and identify Event Gateway data in observability tools.
 
-### 9. Ensure loadbalancer service is accessible
+### 10. Ensure loadbalancer service is accessible
 
 If running locally, ensure the loadbalancer service is accessible. Cloud deployments may require additional configuration to route traffic to the loadbalancer service. Local deployments will depend on the type of k8s cluster but tools like `minikube` can utilize `sudo minikube tunnel -p <your-profile-name>` to expose the loadbalancer service.
 
