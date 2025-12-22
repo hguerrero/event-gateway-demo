@@ -75,9 +75,9 @@ data:
         limit_mib: 1536      # 1.5GB 
         spike_limit_mib: 384 
       batch:
-        timeout: 100ms          
-        send_batch_size: 10      
-        send_batch_max_size: 15 
+        timeout: 5s          
+        send_batch_size: 1000      
+        send_batch_max_size: 2000
     exporters:
       jaeger_storage_exporter:
         trace_storage: primary_storage
