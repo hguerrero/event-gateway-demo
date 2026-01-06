@@ -53,8 +53,4 @@ variable "id_token_duration" {
   default     = 3600
 }
 
-variable "operations_gps_encryption_key" {
-  type        = string
-  description = "32 byte base64 encoded static encryption key for operations vc GPS topic"
-  sensitive   = true
-}
+

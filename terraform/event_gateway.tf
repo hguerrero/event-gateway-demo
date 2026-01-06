@@ -231,7 +231,7 @@ resource "konnect_event_gateway_static_key" "operations_gps_encryption_key" {
   provider   = konnect-beta
   name       = "operations-gps-key-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   gateway_id = konnect_event_gateway.event_gateway_terraform.id
-  value      = var.operations_gps_encryption_key
+  value      = random_bytes.operations_gps_encryption_key.base64
 
   lifecycle {
     create_before_destroy = true
