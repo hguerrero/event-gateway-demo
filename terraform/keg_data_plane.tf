@@ -1,12 +1,6 @@
 # KEG Data Plane Certificate Management
 # This file manages TLS certificate for the Kong Event Gateway data plane
 
-# Generate a 32-byte random key and encode it in base64
-# Equivalent to: openssl rand -base64 32
-resource "random_bytes" "operations_gps_encryption_key" {
-  length = 32
-}
-
 # Generate private key for data plane certificate
 # Equivalent to: openssl req -new -x509 -nodes -newkey rsa:2048
 resource "tls_private_key" "keg_data_plane" {

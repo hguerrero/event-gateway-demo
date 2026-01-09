@@ -7,9 +7,9 @@ A complete Kubernetes deployment for the Kong Event Gateway (KEG) proxying an Ap
 This repository provides Kubernetes-ready manifests for deploying Kong Event Gateway as a secure, multi-tenant Kafka gateway. KEG acts as a proxy layer between Kafka clients and Kafka clusters, enabling virtualization, tenant aware routing, TLS termination, authentication mediation, and advanced topic management capabilities.
 
 The Kafka cluster is managed by the Strimzi Operator and is configured with KRaft mode.
-Data is produced in real-time by Kafka Connect. A Kafka UI viewable in your browser (`http://localhost:80`) is automatically deployed and configured to connect to the Kafka cluster. External access is mediated by the Kong Ingress Controller. Configuration for the kafkactl CLI tool is provided for easy access to the Kafka cluster, but you can also use an external client of your choice.
+Data is produced in real-time by Kafka Connect. A Kafka UI viewable in your browser (http://localhost:80) is automatically deployed and configured to connect to the Kafka cluster. External access is mediated by the Kong Ingress Controller. Configuration for the kafkactl CLI tool is provided for easy access to the Kafka cluster, but you can also use an external client of your choice.
 
-Observability is provided through OpenTelemetry, with traces exported to Jaeger and metrics to Prometheus. Both Jaeger (`http://localhost/jaeger`) and Prometheus (`http://localhost/prometheus`) UIs are accessible via HTTPRoutes through the Kong Ingress Controller.
+Observability is provided through OpenTelemetry, with traces exported to Jaeger and metrics to Prometheus. Both Jaeger (http://localhost/jaeger) and Prometheus (http://localhost/prometheus) UIs are accessible via HTTPRoutes through the Kong Ingress Controller.
 
 All external access (including accessing the Kafka UI) requires utilizing the deployed loadbalancer service. Cloud deployments may require additional configuration to route traffic to the loadbalancer service. Local deployments will depend on the type of k8s cluster but tools like `minikube` can utilize `sudo minikube tunnel -p <your-profile-name>` to expose the loadbalancer service.
 
@@ -21,7 +21,7 @@ All external access (including accessing the Kafka UI) requires utilizing the de
 - Terraform installed (required for Kong Event Gateway configuration in Konnect)
 - [Gateway API experimental](https://gateway-api.sigs.k8s.io/) v1.3.0 installed in cluster
   ```bash
-  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml
+  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/experimental-install.yaml
   ```
 - cert-manager (will be installed in step 2)
 - Strimzi Kafka Operator (will be installed in step 3)
@@ -104,7 +104,7 @@ This deployment includes multiple components that require adequate cluster resou
 ### 1. Create Namespaces
 
 ```bash
-kubectl create namespace kafka && kubectl create namespace keg && kubectl create namespace kafka-ui && kubectl create namespace observability
+kubectl create namespace kafka && kubectl create namespace keg && kubectl create namespace kafka-ui && kubectl create namespace kic && kubectl create namespace observability
 ```
 
 ### 2. Setup TLS Certificates
