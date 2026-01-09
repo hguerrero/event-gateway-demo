@@ -13,6 +13,18 @@ Observability is provided through OpenTelemetry, with traces exported to Jaeger 
 
 All external access (including accessing the Kafka UI) requires utilizing the deployed loadbalancer service. Cloud deployments may require additional configuration to route traffic to the loadbalancer service. Local deployments will depend on the type of k8s cluster but tools like `minikube` can utilize `sudo minikube tunnel -p <your-profile-name>` to expose the loadbalancer service.
 
+## 🔗 Links to access the demo environment
+
+Once deployed, the following services are accessible via the loadbalancer:
+
+| Service        | URL                                                                    | Description                                                         |
+| -------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Kafka UI**   | `http://<loadbalancer-ip>` or `http://localhost:80`                    | Web interface for managing and monitoring Kafka clusters and topics |
+| **Jaeger**     | `http://<loadbalancer-ip>/jaeger` or `http://localhost/jaeger`         | Distributed tracing UI for viewing request traces                   |
+| **Prometheus** | `http://<loadbalancer-ip>/prometheus` or `http://localhost/prometheus` | Metrics querying and visualization UI                               |
+
+> **Note**: Replace `<loadbalancer-ip>` with your actual loadbalancer IP address. For local deployments using `localhost`, ensure the loadbalancer service is properly exposed (e.g., using `minikube tunnel`).
+
 ## 📋 Prerequisites
 
 - Kubernetes cluster (1.24+)
@@ -110,33 +122,36 @@ kubectl create namespace kafka && kubectl create namespace keg && kubectl create
 ### 2. Setup TLS Certificates
 
 1. Install cert-manager in the cluster if not already installed
-    ```bash
-    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
-    ```
+
+   ```bash
+   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+   ```
 
 2. Create CA cert and CA issuer
-    ```bash
-    kubectl apply -f certificates/ca-bootstrap.yaml -n cert-manager
-    ```
+
+   ```bash
+   kubectl apply -f certificates/ca-bootstrap.yaml -n cert-manager
+   ```
 
 3. Deploy certificate resources for cluster
-    ```bash
-    kubectl apply -f certificates/cluster-certificates.yaml
-    ```
+   ```bash
+   kubectl apply -f certificates/cluster-certificates.yaml
+   ```
 
 ### 3. Deploy Kafka Cluster
 
 1. Install strimzi in the kafka namespace. The version must be locked to match the Kafka cluster version.
-    ```bash
-    curl -L https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml \
-      | sed 's/namespace: .*/namespace: kafka/' \
-      | kubectl apply -f - -n kafka
-    ```
+
+   ```bash
+   curl -L https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml \
+     | sed 's/namespace: .*/namespace: kafka/' \
+     | kubectl apply -f - -n kafka
+   ```
 
 2. Deploy core Kafka cluster resources
-    ```bash
-    kubectl apply -f kafka/kafka-cluster/ -n kafka
-    ```
+   ```bash
+   kubectl apply -f kafka/kafka-cluster/ -n kafka
+   ```
 
 ### 4. Configure Kong Event Gateway with Terraform
 
@@ -150,38 +165,42 @@ This step configures the Kong Event Gateway in Konnect, including the backend cl
 **Setup Terraform configuration:**
 
 1. Copy the example variables file
-    ```bash
-    cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-    ```
+
+   ```bash
+   cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+   ```
 
 2. Set the required variables
 
-    ```yaml
-    # - konnect_token: Your Kong Konnect API token 
-    # - konnect_server_url: Your Konnect region URL (default: https://us.api.konghq.com)
-    ```
+   ```yaml
+   # - konnect_token: Your Kong Konnect API token
+   # - konnect_server_url: Your Konnect region URL (default: https://us.api.konghq.com)
+   ```
 
-    _Optionally, set the following variable via TF_VAR_konnect_token environment variable._
-    ```bash
-    export TF_VAR_konnect_token="your-konnect-api-token-here"
-    ```
+   _Optionally, set the following variable via TF_VAR_konnect_token environment variable._
+
+   ```bash
+   export TF_VAR_konnect_token="your-konnect-api-token-here"
+   ```
 
 **Initialize and apply Terraform:**
 
 1. Initialize Terraform (downloads providers)
-    ```bash
-    terraform -chdir=terraform init
-    ```
+
+   ```bash
+   terraform -chdir=terraform init
+   ```
 
 2. Review the planned changes
-    ```bash
-    terraform -chdir=terraform plan
-    ```
+
+   ```bash
+   terraform -chdir=terraform plan
+   ```
 
 3. Apply the configuration (creates resources in Konnect)
-    ```bash
-    terraform -chdir=terraform apply
-    ```
+   ```bash
+   terraform -chdir=terraform apply
+   ```
 
 After successful application, Terraform will create:
 
@@ -194,20 +213,21 @@ After successful application, Terraform will create:
 ### 5. Deploy KEG
 
 1. Create Konnect secret specific to your KEG control plane.
-    ```bash
-    kubectl create secret generic konnect-env-secret \
-      --from-literal=KONNECT_REGION=$(terraform -chdir=terraform output -raw konnect_region) \
-      --from-literal=KONNECT_DOMAIN=konghq.com \
-      --from-literal=KONNECT_GATEWAY_CLUSTER_ID=$(terraform -chdir=terraform output -raw konnect_gateway_cluster_id) \
-      --from-file=KONNECT_CLIENT_CERT=./terraform/certs/tls.crt \
-      --from-file=KONNECT_CLIENT_KEY=./terraform/certs/key.crt \
-      -n keg
-    ```
+
+   ```bash
+   kubectl create secret generic konnect-env-secret \
+     --from-literal=KONNECT_REGION=$(terraform -chdir=terraform output -raw konnect_region) \
+     --from-literal=KONNECT_DOMAIN=konghq.com \
+     --from-literal=KONNECT_GATEWAY_CLUSTER_ID=$(terraform -chdir=terraform output -raw konnect_gateway_cluster_id) \
+     --from-file=KONNECT_CLIENT_CERT=./terraform/certs/tls.crt \
+     --from-file=KONNECT_CLIENT_KEY=./terraform/certs/key.crt \
+     -n keg
+   ```
 
 2. Deploy KEG components and setup services and namespaces for the virtual clusters
-    ```bash
-    kubectl apply -f keg/
-    ```
+   ```bash
+   kubectl apply -f keg/
+   ```
 
 ### 6. Configure Kong Ingress Controller (KIC) with TLSRoute support
 
@@ -240,14 +260,15 @@ kubectl apply -f kic/kic-gateway.yaml
 ### 7. Deploy Kafka Connect
 
 1. Deploy Kafka Connect clusters
-    ```bash
-    kubectl apply -f kafka/kafka-connect/kafka-connect-operations.yaml -f kafka/kafka-connect/kafka-connect-analytics.yaml
-    ```
+
+   ```bash
+   kubectl apply -f kafka/kafka-connect/kafka-connect-operations.yaml -f kafka/kafka-connect/kafka-connect-analytics.yaml
+   ```
 
 2. Deploy Kafka Connect connectors
-    ```bash
-    kubectl apply -f kafka/kafka-connect/connectors/
-    ```
+   ```bash
+   kubectl apply -f kafka/kafka-connect/connectors/
+   ```
 
 ### 8. Deploy Kafka UI
 
@@ -259,19 +280,21 @@ kubectl apply -f kafka-ui/
 ### 9. Deploy Observability Stack
 
 1. Deploy observability components (Jaeger, Prometheus, OpenTelemetry Collector)
-    >Note: Deploy Jaeger first as the OTEL collector references it
-    All observability components are deployed in the observability namespace
-    ```bash
-    kubectl apply -f observability/jaeger.yaml
-    kubectl apply -f observability/prometheus.yaml
-    kubectl apply -f observability/otel-collector.yaml
-    ```
+
+   > Note: Deploy Jaeger first as the OTEL collector references it
+   > All observability components are deployed in the observability namespace
+
+   ```bash
+   kubectl apply -f observability/jaeger.yaml
+   kubectl apply -f observability/prometheus.yaml
+   kubectl apply -f observability/otel-collector.yaml
+   ```
 
 2. Deploy HTTPRoutes for accessing observability UIs
-    ```bash
-    kubectl apply -f observability/jaeger-httproute.yaml
-    kubectl apply -f observability/prometheus-httproute.yaml
-    ```
+   ```bash
+   kubectl apply -f observability/jaeger-httproute.yaml
+   kubectl apply -f observability/prometheus-httproute.yaml
+   ```
 
 The observability stack provides:
 
