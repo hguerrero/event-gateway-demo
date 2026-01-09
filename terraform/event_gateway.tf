@@ -226,12 +226,18 @@ resource "konnect_event_gateway_listener_policy_forward_to_virtual_cluster" "ext
   event_gateway_listener_id = konnect_event_gateway_listener.external_listener.id
 }
 
+# Generate a 32-byte random key and encode it in base64
+# Equivalent to: openssl rand -base64 32
+resource "random_bytes" "operations_gps_encryption_key" {
+  length = 32
+}
+
 # Resources for use in policies
 resource "konnect_event_gateway_static_key" "operations_gps_encryption_key" {
   provider   = konnect-beta
   name       = "operations-gps-key-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   gateway_id = konnect_event_gateway.event_gateway_terraform.id
-  value      = var.operations_gps_encryption_key
+  value      = random_bytes.operations_gps_encryption_key.base64
 
   lifecycle {
     create_before_destroy = true

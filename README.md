@@ -7,9 +7,9 @@ A complete Kubernetes deployment for the Kong Event Gateway (KEG) proxying an Ap
 This repository provides Kubernetes-ready manifests for deploying Kong Event Gateway as a secure, multi-tenant Kafka gateway. KEG acts as a proxy layer between Kafka clients and Kafka clusters, enabling virtualization, tenant aware routing, TLS termination, authentication mediation, and advanced topic management capabilities.
 
 The Kafka cluster is managed by the Strimzi Operator and is configured with KRaft mode.
-Data is produced in real-time by Kafka Connect. A Kafka UI viewable in your browser (`http://localhost:80`) is automatically deployed and configured to connect to the Kafka cluster. External access is mediated by the Kong Ingress Controller. Configuration for the kafkactl CLI tool is provided for easy access to the Kafka cluster, but you can also use an external client of your choice.
+Data is produced in real-time by Kafka Connect. A Kafka UI viewable in your browser (http://localhost:80) is automatically deployed and configured to connect to the Kafka cluster. External access is mediated by the Kong Ingress Controller. Configuration for the kafkactl CLI tool is provided for easy access to the Kafka cluster, but you can also use an external client of your choice.
 
-Observability is provided through OpenTelemetry, with traces exported to Jaeger and metrics to Prometheus. Both Jaeger (`http://localhost/jaeger`) and Prometheus (`http://localhost/prometheus`) UIs are accessible via HTTPRoutes through the Kong Ingress Controller.
+Observability is provided through OpenTelemetry, with traces exported to Jaeger and metrics to Prometheus. Both Jaeger (http://localhost/jaeger) and Prometheus (http://localhost/prometheus) UIs are accessible via HTTPRoutes through the Kong Ingress Controller.
 
 All external access (including accessing the Kafka UI) requires utilizing the deployed loadbalancer service. Cloud deployments may require additional configuration to route traffic to the loadbalancer service. Local deployments will depend on the type of k8s cluster but tools like `minikube` can utilize `sudo minikube tunnel -p <your-profile-name>` to expose the loadbalancer service.
 
@@ -109,28 +109,34 @@ kubectl create namespace kafka && kubectl create namespace keg && kubectl create
 
 ### 2. Setup TLS Certificates
 
-```bash
-# Install cert-manager in the cluster if not already installed
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+1. Install cert-manager in the cluster if not already installed
+    ```bash
+    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+    ```
 
-# Create CA cert and CA issuer
-kubectl apply -f certificates/ca-bootstrap.yaml -n cert-manager
+2. Create CA cert and CA issuer
+    ```bash
+    kubectl apply -f certificates/ca-bootstrap.yaml -n cert-manager
+    ```
 
-# Deploy certificate resources for cluster
-kubectl apply -f certificates/cluster-certificates.yaml
-```
+3. Deploy certificate resources for cluster
+    ```bash
+    kubectl apply -f certificates/cluster-certificates.yaml
+    ```
 
 ### 3. Deploy Kafka Cluster
 
-```bash
-# Install strimzi in the kafka namespace. The version must be locked to match the Kafka cluster version.
-curl -L https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml \
-  | sed 's/namespace: .*/namespace: kafka/' \
-  | kubectl apply -f - -n kafka
+1. Install strimzi in the kafka namespace. The version must be locked to match the Kafka cluster version.
+    ```bash
+    curl -L https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml \
+      | sed 's/namespace: .*/namespace: kafka/' \
+      | kubectl apply -f - -n kafka
+    ```
 
-# Deploy core Kafka cluster resources
-kubectl apply -f kafka/kafka-cluster/ -n kafka
-```
+2. Deploy core Kafka cluster resources
+    ```bash
+    kubectl apply -f kafka/kafka-cluster/ -n kafka
+    ```
 
 ### 4. Configure Kong Event Gateway with Terraform
 
@@ -141,41 +147,41 @@ This step configures the Kong Event Gateway in Konnect, including the backend cl
 - Terraform installed ([installation instructions](https://developer.hashicorp.com/terraform/downloads))
 - Kong Konnect personal access token (create one in the Konnect console)
 
-**Generate the encryption key:**
-
-```bash
-# Generate a 32-byte random key and encode it in base64
-openssl rand -base64 32
-```
-
 **Setup Terraform configuration:**
 
-```bash
-cd terraform
+1. Copy the example variables file
+    ```bash
+    cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+    ```
 
-# Copy the example variables file
-cp terraform.tfvars.example terraform.tfvars
+2. Set the required variables
 
-# Edit terraform.tfvars and set the required variables:
-# - konnect_token: Your Kong Konnect API token (or set via TF_VAR_konnect_token environment variable)
-# - operations_gps_encryption_key: The base64-encoded key generated above
-# - konnect_server_url: Your Konnect region URL (default: https://us.api.konghq.com)
-```
+    ```yaml
+    # - konnect_token: Your Kong Konnect API token 
+    # - konnect_server_url: Your Konnect region URL (default: https://us.api.konghq.com)
+    ```
 
-````
+    _Optionally, set the following variable via TF_VAR_konnect_token environment variable._
+    ```bash
+    export TF_VAR_konnect_token="your-konnect-api-token-here"
+    ```
 
 **Initialize and apply Terraform:**
 
-```bash
-# Initialize Terraform (downloads providers)
-terraform init
+1. Initialize Terraform (downloads providers)
+    ```bash
+    terraform -chdir=terraform init
+    ```
 
-# Review the planned changes
-terraform plan
+2. Review the planned changes
+    ```bash
+    terraform -chdir=terraform plan
+    ```
 
-# Apply the configuration (creates resources in Konnect)
-terraform apply
-````
+3. Apply the configuration (creates resources in Konnect)
+    ```bash
+    terraform -chdir=terraform apply
+    ```
 
 After successful application, Terraform will create:
 
@@ -187,19 +193,21 @@ After successful application, Terraform will create:
 
 ### 5. Deploy KEG
 
-```bash
-# Create Konnect secret specific to your KEG control plane. These values can be found in the Kong Konnect console when deploying a KEG dataplane
-kubectl create secret generic konnect-env-secret \
-  --from-literal=KONNECT_REGION=<your-region> \
-  --from-literal=KONNECT_DOMAIN=konghq.com \
-  --from-literal=KONNECT_GATEWAY_CLUSTER_ID=<control-plane-id> \
-  --from-literal=KONNECT_CLIENT_CERT=<full-client-certificate> \
-  --from-literal=KONNECT_CLIENT_KEY=<full-client-key> \
-  -n keg
+1. Create Konnect secret specific to your KEG control plane.
+    ```bash
+    kubectl create secret generic konnect-env-secret \
+      --from-literal=KONNECT_REGION=$(terraform -chdir=terraform output -raw konnect_region) \
+      --from-literal=KONNECT_DOMAIN=konghq.com \
+      --from-literal=KONNECT_GATEWAY_CLUSTER_ID=$(terraform -chdir=terraform output -raw konnect_gateway_cluster_id) \
+      --from-file=KONNECT_CLIENT_CERT=./terraform/certs/tls.crt \
+      --from-file=KONNECT_CLIENT_KEY=./terraform/certs/key.crt \
+      -n keg
+    ```
 
-# Deploy KEG components and setup services and namespaces for the virtual clusters
-kubectl apply -f keg/
-```
+2. Deploy KEG components and setup services and namespaces for the virtual clusters
+    ```bash
+    kubectl apply -f keg/
+    ```
 
 ### 6. Configure Kong Ingress Controller (KIC) with TLSRoute support
 
@@ -231,13 +239,15 @@ kubectl apply -f kic/kic-gateway.yaml
 
 ### 7. Deploy Kafka Connect
 
-```bash
-# Deploy Kafka Connect clusters
-kubectl apply -f kafka/kafka-connect/kafka-connect-operations.yaml -f kafka/kafka-connect/kafka-connect-analytics.yaml
+1. Deploy Kafka Connect clusters
+    ```bash
+    kubectl apply -f kafka/kafka-connect/kafka-connect-operations.yaml -f kafka/kafka-connect/kafka-connect-analytics.yaml
+    ```
 
-# Deploy Kafka Connect connectors
-kubectl apply -f kafka/kafka-connect/connectors/
-```
+2. Deploy Kafka Connect connectors
+    ```bash
+    kubectl apply -f kafka/kafka-connect/connectors/
+    ```
 
 ### 8. Deploy Kafka UI
 
@@ -248,18 +258,20 @@ kubectl apply -f kafka-ui/
 
 ### 9. Deploy Observability Stack
 
-```bash
-# Deploy observability components (Jaeger, Prometheus, OpenTelemetry Collector)
-# Note: Deploy Jaeger first as the OTEL collector references it
-# All observability components are deployed in the observability namespace
-kubectl apply -f observability/jaeger.yaml
-kubectl apply -f observability/prometheus.yaml
-kubectl apply -f observability/otel-collector.yaml
+1. Deploy observability components (Jaeger, Prometheus, OpenTelemetry Collector)
+    >Note: Deploy Jaeger first as the OTEL collector references it
+    All observability components are deployed in the observability namespace
+    ```bash
+    kubectl apply -f observability/jaeger.yaml
+    kubectl apply -f observability/prometheus.yaml
+    kubectl apply -f observability/otel-collector.yaml
+    ```
 
-# Deploy HTTPRoutes for accessing observability UIs
-kubectl apply -f observability/jaeger-httproute.yaml
-kubectl apply -f observability/prometheus-httproute.yaml
-```
+2. Deploy HTTPRoutes for accessing observability UIs
+    ```bash
+    kubectl apply -f observability/jaeger-httproute.yaml
+    kubectl apply -f observability/prometheus-httproute.yaml
+    ```
 
 The observability stack provides:
 
